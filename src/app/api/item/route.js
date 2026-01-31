@@ -1,21 +1,25 @@
 import { getClientPromise } from "@/lib/mongodb";
 import { NextResponse } from "next/server";
-import corsHeaders from "@/lib/cors";
 
-export async function OPTIONS(req) {
-  return new Response(null, {
-    status: 200,
-    headers: corsHeaders,
-  });
+export const dynamic = "force-dynamic"; // Force Next.js not to cache this API
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { status: 200, headers: corsHeaders });
 }
 
 export async function GET() {
-  // PDF Page 16: Headers to prevent caching issues
+  // PDF Page 16: Headers to prevent caching stale data
   const headers = {
+    ...corsHeaders,
     "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
     Pragma: "no-cache",
     Expires: "0",
-    ...corsHeaders,
   };
 
   try {
@@ -38,13 +42,15 @@ export async function POST(req) {
     const client = await getClientPromise();
     const db = client.db("wad-01");
 
-    // PDF Page 8: Map inputs and add status
-    const result = await db.collection("item").insertOne({
+    // PDF Page 8: Map input fields and add ACTIVE status
+    const newItem = {
       itemName: data.name,
       itemCategory: data.category,
       itemPrice: data.price,
-      status: "ACTIVE", // Required for video functionality
-    });
+      status: "ACTIVE", // Required for video match
+    };
+
+    const result = await db.collection("item").insertOne(newItem);
 
     return NextResponse.json(
       { id: result.insertedId },
